@@ -34,22 +34,27 @@ if ($prefs['feature_groupalert'] == 'y') {
 	include_once ('lib/groupalert/groupalertlib.php');
 }
 
+if ( $prefs['auth_token_access'] == 'y' && !empty($token) ) {
+	$smarty->assign('token_id', $token);
+}
+
 $auto_query_args = array( 'galleryId'
-												, 'offset'
-												, 'find'
-												, 'find_creator'
-												, 'find_categId'
-												, 'sort_mode'
-												, 'edit_mode'
-												, 'page'
-												, 'filegals_manager'
-												, 'insertion_syntax'
-												, 'maxRecords'
-												, 'show_fgalexplorer'
-												, 'dup_mode'
-												, 'show_details'
-												, 'view'
-												);
+		, 'offset'
+		, 'find'
+		, 'find_creator'
+		, 'find_categId'
+		, 'sort_mode'
+		, 'edit_mode'
+		, 'page'
+		, 'filegals_manager'
+		, 'insertion_syntax'
+		, 'maxRecords'
+		, 'show_fgalexplorer'
+		, 'dup_mode'
+		, 'show_details'
+		, 'view'
+		);
+
 if (!empty($_REQUEST['find_other'])) {
 	$info = $filegallib->get_file_info($_REQUEST['find_other']);
 	if (!empty($info)) {
@@ -59,7 +64,6 @@ if (!empty($_REQUEST['find_other'])) {
 }
 
 $gal_info = '';
-
 if ( empty($_REQUEST['galleryId']) && isset($_REQUEST['parentId']) ) {
 
 	// check perms on parent gallery
@@ -108,20 +112,25 @@ if ( empty($_REQUEST['galleryId']) && isset($_REQUEST['parentId']) ) {
 	}
 }
 
-$galleryId = $_REQUEST['galleryId'];
-if (($galleryId != 0 || $tiki_p_list_file_galleries != 'y') && ($galleryId == 0 || $tiki_p_view_file_gallery != 'y')) {
-	$smarty->assign('errortype', 401);
-	$smarty->assign('msg', tra('You do not have permission to view this section'));
-	$smarty->display('error.tpl');
-	die;
-}
-if ($prefs['feature_use_fgal_for_user_files'] === 'y' && $gal_info['type'] === 'user' &&
-		$gal_info['visible'] !== 'y' && $gal_info['user'] !== $user && $tiki_p_admin_file_galleries !== 'y') {
+echo 'TOTO';
 
-	$smarty->assign('errortype', 401);
-	$smarty->assign('msg', tra('You do not have permission to view this gallery'));
-	$smarty->display('error.tpl');
-	die;
+$galleryId = $_REQUEST['galleryId'];
+if ( $prefs['auth_token_access'] != 'y' || !$is_token_access ) {
+	// Check permissions except if the user comes with a valid Token
+	if (($galleryId != 0 || $tiki_p_list_file_galleries != 'y') && ($galleryId == 0 || $tiki_p_view_file_gallery != 'y')) {
+		$smarty->assign('errortype', 401);
+		$smarty->assign('msg', tra('You do not have permission to view this section'));
+		$smarty->display('error.tpl');
+		die;
+	}
+	if ($prefs['feature_use_fgal_for_user_files'] === 'y' && $gal_info['type'] === 'user' &&
+			$gal_info['visible'] !== 'y' && $gal_info['user'] !== $user && $tiki_p_admin_file_galleries !== 'y') {
+
+		$smarty->assign('errortype', 401);
+		$smarty->assign('msg', tra('You do not have permission to view this gallery'));
+		$smarty->display('error.tpl');
+		die;
+	}
 }
 
 // Init smarty variables to blank values

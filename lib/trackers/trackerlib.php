@@ -617,6 +617,23 @@ class TrackerLib extends TikiLib
 		return array_values($items);
 	}
 
+	public function get_items_list_multiple($trackerId, $data, $status='o')
+  {
+      $items = array();
+      $init = true;
+      foreach( $data as $d ) {
+          $tmp = $this->get_items_list($trackerId, $d['fieldId'], $d['value']);
+          if ( empty($tmp) ) return array();
+          if ( $init ) {
+              $init = false;
+              $items = $tmp;
+          } else {
+              $items = array_intersect($items, $tmp);
+          }
+      }
+      return array_values($items);
+  }
+
 	public function get_tracker($trackerId)
 	{
 		return $this->table('tiki_trackers')->fetchFullRow(array('trackerId' => (int) $trackerId));

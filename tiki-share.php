@@ -143,9 +143,26 @@ $smarty->assign('url', $_REQUEST['url']);
 $smarty->assign('prefix', $tikilib->httpPrefix(true));
 $smarty->assign_by_ref('url_for_friend', $url_for_friend);
 
+//FIXME Add features
+if ( $prefs['feature_trackers'] == 'y' ) {
+    $trk = $tikilib->lib('trk');
+    $trk_share = $trk->get_tracker_by_name('Share-it');
+    if ( $trk_share ) {
+        $share_url_id = $trk->get_field_by_name($trk_share, 'Url');
+        $share_user_id = $trk->get_field_by_name($trk_share, 'User');
+        $trk_share_item_id = $trk->get_items_list_multiple($trk_share, array( 0 => array('fieldId' => $share_url_id, 'value' => $_REQUEST['url']), 1 => array('fieldId' => $share_user_id, 'value' => $user)));
+        if ( !empty($trk_share_item_id) ) {
+            $trk_share_item = $trk->get_tracker_item($trk_share_item_id[0]);
+            $share_subject = $trk_share_item[$trk->get_field_by_name($trk_share, 'Subject')];
+            $share_comment = $trk_share_item[$trk->get_field_by_name($trk_share, 'Content')];
+        }
+    }
+}
+
 if (!empty($_REQUEST['subject'])) {
 	$subject = $_REQUEST['subject'];
-	$smarty->assign('subject', $subject);
+} elseif ( !empty($share_subject) ) {
+	$subject = $share_subject;
 } else {
 	if ($report == 'y') {
 		$subject = tra('Report to the webmaster', $prefs['site_language']);
@@ -157,11 +174,32 @@ if (!empty($_REQUEST['subject'])) {
 
 $smarty->assign('subject', $subject);
 
-if (isset($_REQUEST['send'])) {
+if (!empty($_REQUEST['comment'])) {
+	$smarty->assign('comment', $_REQUEST['comment']);
+} elseif ( !empty($share_comment) ) {
+	$_REQUEST['comment'] = $share_comment;
+	$smarty->assign('comment', $_REQUEST['comment']);
+}
 
-	if (!empty($_REQUEST['comment'])) {
-		$smarty->assign('comment', $_REQUEST['comment']);
-	}
+if (isset($_REQUEST['send'])) {
+    //FIXME Add feature
+		if ( $prefs['feature_trackers'] == 'y' ) {
+				if ( $trk_share ) {
+						$fields = array( 
+								$trk->get_field_by_name($trk_share, 'Subject') => $subject,
+								$trk->get_field_by_name($trk_share, 'Url') => $_REQUEST['url'],
+								$trk->get_field_by_name($trk_share, 'Content') => $_REQUEST['comment'],
+								$trk->get_field_by_name($trk_share, 'User') => $user);
+						$trackerDefinition = Tracker_Definition::get($trk_share);
+						$xfields = array('data' => $trackerDefinition->getFields(false));
+						foreach($xfields['data'] as &$tmp_field){
+								if ( isset($fields[$tmp_field['fieldId']]) ) {
+										$tmp_field['value'] = $fields[$tmp_field['fieldId']];
+								}
+						}
+						$trk->replace_item($trk_share, (!empty($trk_share_item_id) ? $trk_share_item_id[0] : ''),$xfields);
+				}
+		}
 
 	if (!empty($_REQUEST['share_token_notification'])) {
 		$smarty->assign('share_token_notification', $_REQUEST['share_token_notification']);

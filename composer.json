@@ -63,7 +63,8 @@
 		"svg-edit/svg-edit": "2.6",
 		"symfony/console": "2.2.0",
 		"zetacomponents/base": "1.8",
-		"zetacomponents/webdav": "1.1.3"
+		"zetacomponents/webdav": "1.1.3",
+		"blueimp/jquery-file-upload": "9.5.2"
 	},
 	"require-dev": {
 		"mikey179/vfsStream": "1.1.0"

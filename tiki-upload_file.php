@@ -26,7 +26,32 @@ if ($prefs['feature_categories'] == 'y') {
 	include_once ('lib/categories/categlib.php');
 }
 
+$prefs['jquery_upload'] = true;
 $access->check_feature('feature_file_galleries');
+
+// jQuery-upload-file
+if ( $prefs['jquery_upload'] ) {
+    //$headerlib->add_cssfile('http://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css', 'external');
+    $headerlib->add_cssfile('vendor/blueimp/jquery-file-upload/css/style.css');
+    //$headerlib->add_cssfile('http://blueimp.github.io/Gallery/css/blueimp-gallery.min.css', 'external');
+    $headerlib->add_cssfile('vendor/blueimp/jquery-file-upload/css/jquery.fileupload.css');
+    $headerlib->add_cssfile('vendor/blueimp/jquery-file-upload/css/jquery.fileupload-ui.css');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/vendor/jquery.ui.widget.js');
+    $headerlib->add_jsfile('http://blueimp.github.io/JavaScript-Templates/js/tmpl.min.js', 'external');
+    $headerlib->add_jsfile('http://blueimp.github.io/JavaScript-Load-Image/js/load-image.min.js','external');
+    $headerlib->add_jsfile('http://blueimp.github.io/JavaScript-Canvas-to-Blob/js/canvas-to-blob.min.js','external');
+//    $headerlib->add_jsfile('http://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js','external');
+    //$headerlib->add_jsfile('http://blueimp.github.io/Gallery/js/jquery.blueimp-gallery.min.js','external');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.iframe-transport.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-process.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-image.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-audio.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-video.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-validate.js');
+    $headerlib->add_jsfile('vendor/blueimp/jquery-file-upload/js/jquery.fileupload-ui.js');
+    $headerlib->add_jsfile('lib/jquery-file-upload_tiki/main.js');
+}
 
 include_once ('lib/filegals/filegallib.php');
 if ($prefs['feature_groupalert'] == 'y') {
@@ -79,12 +104,17 @@ if (isset($_REQUEST['galleryId'][0])) {
 	$smarty->assign_by_ref('gal_info', $gal_info);
 }
 
-if ( empty( $fileId ) && $tiki_p_upload_files != 'y' && $tiki_p_admin_file_galleries != 'y') {
-	$smarty->assign('errortype', 401);
-	$smarty->assign('msg', tra("Permission denied"));
-	$smarty->display('error.tpl');
-	die;
+if ( $prefs['auth_token_access'] != 'y' || !$is_token_access ) {
+	// Check permissions except if the user comes with a valid Token
+
+	if ( empty( $fileId ) && $tiki_p_upload_files != 'y' && $tiki_p_admin_file_galleries != 'y') {
+		$smarty->assign('errortype', 401);
+		$smarty->assign('msg', tra("Permission denied"));
+		$smarty->display('error.tpl');
+		die;
+	}
 }
+
 if (isset($_REQUEST['galleryId'][1])) {
 	foreach ($_REQUEST['galleryId'] as $i => $gal) {
 		if (!$i) continue;
@@ -93,6 +123,7 @@ if (isset($_REQUEST['galleryId'][1])) {
 		$access->check_permission('tiki_p_upload_files');
 	}
 }
+
 if ( ! empty( $fileId ) ) {
 	if (!empty($fileInfo['lockedby']) && $fileInfo['lockedby'] != $user && $tiki_p_admin_file_galleries != 'y') { // if locked must be the locker
 		$smarty->assign('msg', tra(sprintf('The file is locked by %s', $fileInfo['lockedby'])));
@@ -167,6 +198,7 @@ if ( $isUpload ) {
 	$uploadParams = array(
 		'fileInfo' => $fileInfo,
 		'galleryId' => $_REQUEST['galleryId'],
+		'jquery-file-upload' => $prefs['jquery_upload'],
 	);
 
 	foreach ( $optionalRequestParams as $p ) {
@@ -176,7 +208,11 @@ if ( $isUpload ) {
 	}
 
 	if ( $fileInfo = $filegallib->actionHandler('uploadFile', $uploadParams) ) {
-		$fileId = $fileInfo['fileId'];
+		if ( isset($fileInfo[0]) ) {
+			$fileId = $fileInfo[0]['fileId'];
+		} else {
+			$fileId = $fileInfo['fileId'];
+		}
 	}
 }
 
@@ -229,8 +265,12 @@ $smarty->assign('metatag_robots', 'NOINDEX, NOFOLLOW');
 
 // Display the template
 if ( $prefs['javascript_enabled'] != 'y' or ! $isUpload ) {
-	$headerlib->add_jsfile('vendor/jquery/plugins/form/jquery.form.js');
-	$smarty->assign('mid', 'tiki-upload_file.tpl');
+	if ( $prefs['jquery_upload'] ) {
+		$smarty->assign('mid', 'tiki-upload_file_jquery-upload-file.tpl');
+	} else {
+		$headerlib->add_jsfile('vendor/jquery/plugins/form/jquery.form.js');
+		$smarty->assign('mid', 'tiki-upload_file.tpl');
+	}
 	if ( ! empty( $_REQUEST['filegals_manager'] ) ) {
 		$smarty->assign('filegals_manager', $_REQUEST['filegals_manager']);
 		$smarty->assign('insertion_syntax', isset($_REQUEST['insertion_syntax']) ? $_REQUEST['insertion_syntax'] : '');
@@ -238,4 +278,19 @@ if ( $prefs['javascript_enabled'] != 'y' or ! $isUpload ) {
 	} else {
 		$smarty->display("tiki.tpl");
 	}
+}
+
+if ( $prefs['jquery_upload'] && $isUpload ) {
+    if ( isset($fileInfo[0]) ) {
+        foreach($fileInfo as $fi) {
+            if ( empty($fi['error']) ) {
+                $files['files'][] = array( 'name' => $fi['name'], 'size' => $fi['size'], 'url' => $url_path.'tiki-download_file.php?fileId='.$fi['fileId']);
+            } else {
+                $files['files'][] = array( 'name' => $fi['name'], 'size' => $fi['size'], 'error' => $fi['error']);
+            }
+        }
+    } else {
+        $files['files'][] = array( 'name' => $fileInfo['name'], 'size' => $fileInfo['filesize'], 'url' => $fileInfo['path']);
+    }
+    echo json_encode($files);
 }

@@ -3252,14 +3252,16 @@ class FileGalLib extends TikiLib
 						}
 					}
 
-					if (!$this->checkQuota($aFiles['userfile']['size'][$key], $params['galleryId'][$key], $error)) {
-						$errors[] = $error;
-						continue;
-					}
-
 					$size = $aFiles["userfile"]['size'][$key];
 					$type = $aFiles["userfile"]['type'][$key];
 					$name = stripslashes($aFiles["userfile"]['name'][$key]);
+
+					if (!$this->checkQuota($aFiles['userfile']['size'][$key], $params['galleryId'][$key], $error)) {
+						//FIXME
+						$uploads[] = array ( 'name' => $name, 'size' => $size, 'error' => $error);
+						$errors[] = $error;
+						continue;
+					}
 
 					$file_name = $aFiles["userfile"]["name"][$key];
 					$file_tmp_name = $aFiles["userfile"]["tmp_name"][$key];
@@ -3326,12 +3328,14 @@ class FileGalLib extends TikiLib
 						$type = "video/x-flv";
 					}
 
-					if (count($errors)) {
-						continue;
-					}
-
 					if (!$size) {
 						$errors[] = tra('Warning: Empty file:') . '  ' . $name . '. ' . tra('Please re-upload your file');
+					}
+
+					if (count($errors)) {
+						//FIXME
+						$uploads[] = array ( 'name' => $name, 'size' => $size, 'error' => implode('<br/>',$error));
+						continue;
 					}
 
 					if (empty($params['name'][$key])) $params['name'][$key] = $name;
@@ -3379,6 +3383,7 @@ class FileGalLib extends TikiLib
 						if ( $prefs['fgal_limit_hits_per_file'] == 'y' && isset($params['hit_limit'][$key]) ) {
 							$this->set_download_limit($fileId, $params['hit_limit'][$key]);
 						}
+
 						if (count($errors) == 0) {
 							$aux['name'] = $name;
 							$aux['size'] = $size;
@@ -3389,6 +3394,7 @@ class FileGalLib extends TikiLib
 								$aux['dllink'] = $url_browse . "?fileId=" . $fileId;
 							}
 							$uploads[] = $aux;
+
 							$cat_type = 'file';
 							$cat_objid = $fileId;
 							$cat_desc = substr($params["description"][$key], 0, 200);
@@ -3400,7 +3406,7 @@ class FileGalLib extends TikiLib
 							}
 							include_once ('categorize.php');
 							// Print progress
-							if (empty($params['returnUrl']) && $prefs['javascript_enabled'] == 'y') {
+							if ( empty($params['jquery-file-upload']) && empty($params['returnUrl']) && $prefs['javascript_enabled'] == 'y') {
 								$smarty->assign("name", $aux['name']);
 								$smarty->assign("size", $aux['size']);
 								$smarty->assign("fileId", $aux['fileId']);
@@ -3414,13 +3420,16 @@ class FileGalLib extends TikiLib
 								}
 								$smarty->display("tiki-upload_file_progress.tpl");
 							}
+						} else {
+							//FIXME
+							$uploads[] = array ( 'name' => $name, 'size' => $size, 'error' => implode('<br/>',$error));
 						}
 					}
 				}
 			}
 		}
 
-		if (empty($params['returnUrl']) && count($errors)) {
+		if (empty($params['jquery-file-upload']) && empty($params['returnUrl']) && count($errors)) {
 			foreach ($errors as $error) {
 				$this->print_msg($error, true);
 			}
@@ -3461,7 +3470,7 @@ class FileGalLib extends TikiLib
 				$this->set_download_limit($editFileId, $params['hit_limit'][0]);
 			}
 			include_once ('categorize.php');
-			if (count($errors) == 0) {
+			if ( empty($params['jquery-file-upload']) && count($errors) == 0) {
 				header("location: tiki-list_file_gallery.php?galleryId=" . $params["galleryId"][0]);
 				die;
 			}
@@ -3470,7 +3479,7 @@ class FileGalLib extends TikiLib
 		$smarty->assign('errors', $errors);
 		$smarty->assign('uploads', $uploads);
 
-		if (!empty($params['returnUrl'])) {
+		if ( empty($params['jquery-file-upload']) && !empty($params['returnUrl'])) {
 			if (!empty($errors)) {
 				$smarty->assign('msg', implode($errors, '<br />'));
 				$smarty->display('error.tpl');
@@ -3481,7 +3490,7 @@ class FileGalLib extends TikiLib
 		}
 
 		// Returns fileInfo of the new file if only one file has been edited / uploaded
-		return $fileInfo;
+		return !empty($fileInfo) ? $fileInfo : $uploads;
 	}
 
 	private function getTitleFromFilename($title)
